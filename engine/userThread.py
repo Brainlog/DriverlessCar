@@ -45,16 +45,35 @@ class UserThread(threading.Thread):
         oldDir = Vec2d(self.junior.dir.x, self.junior.dir.y)
         oldPos = Vec2d(self.junior.pos.x, self.junior.pos.y)
         quitAction = self.junior.action()
-        carProb = self.model.getProbCar()
+
+        if not Const.INTELLIGENT_DRIVER:
+            carProb = self.model._getProbCar()
+        else:
+            carProb = self.model.getProbCar()
+
         if carProb and Const.AUTO:
-            agentGraph = self.model.getJuniorGraph()
-            self.junior.autonomousAction(carProb, agentGraph)
+            parkedCars = [c.getParkedStatus() for c in self.model.getOtherCars()]
+            if Const.INTELLIGENT_DRIVER:
+                self.junior.intelligent_autonomousAction(carProb, parkedCars, self.model.nextCheckPtIdx)
+            else:
+                agentGraph = self.model.getJuniorGraph()
+                try:
+                    # to avoid raising exception when out of bounds
+                    self.junior.autonomousAction(carProb, agentGraph)
+                except:
+                    pass
+        
         if quitAction: 
             self.quit = True
             return
         self.junior.update()
         self.collision = self.model.checkCollision(self.junior)
-        self.victory = self.model.checkVictory()
+
+        if not Const.MULTIPLE_GOALS:
+            self.victory = self.model.checkVictory()
+        else:
+            self.victory = self.model._checkVictory()
+
         newPos = self.junior.getPos()
         newDir = self.junior.getDir()
         deltaPos = newPos - oldPos

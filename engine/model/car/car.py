@@ -17,8 +17,12 @@ class Car(object):
     MAX_SPEED = 16.0
     MAX_ACCELERATION = 10.0
     FRICTION = 2.0
-    LENGTH = 30.0
-    WIDTH = 15.0 
+    # LENGTH = 30.0
+    # WIDTH = 15.0
+    # Try the following for "small" world
+    LENGTH = 15.0
+    WIDTH = 10.0
+
     RADIUS = math.sqrt(LENGTH ** 2 + WIDTH ** 2)
     
     def __init__(self, pos, dirName, velocity):
@@ -42,7 +46,7 @@ class Car(object):
         #Sonar
         dist = (junior.pos - self.pos).get_length()
         std = Const.SONAR_STD
-        return SonarObservation(random.gauss(dist, std))
+        return SonarObservation(random.gauss(dist, std)) 
         
         #Radar
         '''errorForwards = Const.RADAR_NOISE_STD

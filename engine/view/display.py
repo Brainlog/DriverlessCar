@@ -32,7 +32,11 @@ class Display(object):
         'teal',
         'red',
         'orange',
-        'yellow'
+        'yellow',
+        'violet',
+        'light_green',
+        'blue',
+        'baby_pink'
     ]
     COLOR_HUES = {
         'purple' : 0.8,
@@ -40,7 +44,11 @@ class Display(object):
         'teal' : 0.49,
         'red' : 0.0,
         'orange' : 0.125,
-        'yellow' : 0.21
+        'yellow' : 0.21, 
+        'violet': 0.72,
+        'light_green': 0.41,
+        'blue': 0.6,
+        'baby_pink': 0.9
     }
     
     @staticmethod

@@ -1,15 +1,18 @@
 from .car.car import Car
 from .car.agent import Agent
-from .car.junior import Junior
-from autoDriver import AutoDriver
-from engine.vector import Vec2d
 from engine.const import Const
+from .car.junior import Junior
+from engine.vector import Vec2d
+from autoDriver import AutoDriver
 from engine.model.block import Block
+from intelligentDriver import IntelligentDriver
 from engine.model.agentCommunication import AgentCommunication
 
-import threading
+
 import copy
 import util
+import random
+import threading
 
 class Model(object):
 
@@ -20,27 +23,44 @@ class Model(object):
         startX = layout.getStartX()
         startY = layout.getStartY()
         startDirName = layout.getJuniorDir()
-        self.junior = AutoDriver()
+        # self.junior = AutoDriver()
+        if Const.INTELLIGENT_DRIVER:
+            self.junior = IntelligentDriver(layout)
+        else:
+            self.junior = AutoDriver()
+            
         self.junior.setup(
             Vec2d(startX, startY), 
             startDirName, 
             Vec2d(0, 0)
         )
         self.cars = [self.junior]
-        self.otherCars = []
-        self.finish = Block(layout.getFinish())
+        self.otherCars = [] 
+
+        self.visited = [0]*Const.NUM_CHECKPTS # Const.NUM_CHECKPTS == len(self.finish)
+        self.nextCheckPtIdx = 0
+
+        if not Const.MULTIPLE_GOALS:
+            self.finish = Block(layout.getFinish()) 
+        else:
+            self.finish = []
+            for block in layout.getFinish():
+                # print(block)
+                self.finish.append(Block(block))
 
         agentComm = AgentCommunication()
         agentGraph = layout.getAgentGraph()
         for _ in range(Const.NUM_AGENTS):
             startNode = self._getStartNode(agentGraph)
-            other = Agent(startNode, layout.getAgentGraph(), self, agentComm)
+            # other = Agent(startNode, layout.getAgentGraph(), self, agentComm) 
+            other = Agent(startNode, layout.getAgentGraph(), self, agentComm, Const.CARS_PARKED)
             self.cars.append(other)
             self.otherCars.append(other)
         self.observations = []
         agentComm.addAgents(self.otherCars)
         self.modelLock = threading.Lock()
         self.probCarSet = False
+        
         
     def _initBlocks(self, layout):
         self.blocks = []
@@ -71,7 +91,40 @@ class Model(object):
         for point in bounds:
             if self.finish.containsPoint(point.x, point.y): return True
         return False
-            
+
+    def unordered_checkVictory(self): 
+        bounds = self.junior.getBounds() 
+
+        for idx, checkpt in enumerate(self.finish):
+            for point in bounds:
+                if checkpt.containsPoint(point.x, point.y):
+                    if self.visited[idx]==0:
+                        print(f"Checkpoint {idx} visited!")
+                    self.visited[idx] = 1
+
+        # print(visited)
+        if self.visited==[1]*len(self.finish):
+            return True 
+        return False
+    
+    # for ordered visit of checkpoints
+    def _checkVictory(self):
+        bounds = self.junior.getBounds() 
+        checkpt = self.finish[self.nextCheckPtIdx]
+
+        for point in bounds:
+            if checkpt.containsPoint(point.x, point.y):
+                if self.visited[self.nextCheckPtIdx]==0:
+                    print(f"Checkpoint {self.nextCheckPtIdx+1} visited!")
+                self.visited[self.nextCheckPtIdx] = 1
+                self.nextCheckPtIdx += 1
+                break
+        
+        if self.visited==[1]*Const.NUM_CHECKPTS:
+            Const.COMPLETED_CHECKPTS += 1 # the final checkpoint is not counted by 'getNextGoalPos'
+            return True 
+        return False
+
     def checkCollision(self, car):
         bounds = car.getBounds()
         # check for collision with fixed obstacles
@@ -132,7 +185,10 @@ class Model(object):
     def getJuniorGraph(self):
         return self.layout.getJuniorGraph()
     
+    # to calculate the probability of presence of any StdCar on the grid cells
     def setProbCar(self, beliefs):
+        self.currBeliefs = beliefs
+
         self.modelLock.acquire()
         total = util.Belief(self.getBeliefRows(), self.getBeliefCols(), 0.0)
         for r in range(self.getBeliefRows()):
@@ -147,9 +203,18 @@ class Model(object):
         self.modelLock.release()
         self.probCarSet = True
     
-    def getProbCar(self):
+    def _getProbCar(self):
         if not self.probCarSet: return None
         self.modelLock.acquire()
         probCar = copy.deepcopy(self.probCar)
         self.modelLock.release()
         return probCar
+    
+    def getProbCar(self):
+        if not getattr(self,"currBeliefs", False):
+            return None 
+        self.modelLock.acquire()
+        probCar = copy.deepcopy(self.currBeliefs)
+        self.modelLock.release()
+        return probCar
+

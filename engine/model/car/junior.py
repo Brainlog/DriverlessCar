@@ -10,12 +10,14 @@ class Junior(Car):
     LEFT_KEY = 'Left'
     RIGHT_KEY = 'Right'
     
-    ACCELERATION = 1.4
+    # ACCELERATION = 1.4
+    ACCELERATION = 5.0
     FRICTION = 1.0
     WHEEL_TURN = 2.0
     WHEEL_TURN_HUMAN = 1.0
     MAX_WHEEL_ANGLE = 10.0
-    MAX_SPEED = 5.0
+    # MAX_SPEED = 5.0
+    MAX_SPEED = 7.0
     
     def setup(self, pos, direction, velocity):
         Car.__init__(self, pos, direction, velocity)
@@ -55,6 +57,23 @@ class Junior(Car):
         oldDir = Vec2d(self.dir.x, self.dir.y)
         oldVel = Vec2d(self.velocity.x, self.velocity.y)
         actions = self.getAutonomousActions(beliefs, agentGraph)
+        assert self.pos == oldPos
+        assert self.dir == oldDir
+        assert self.velocity == oldVel
+        if Car.DRIVE_FORWARD in actions:
+            percent = actions[Car.DRIVE_FORWARD]
+            percent = max(percent, 0.0)
+            percent = min(percent, 1.0)
+            self.accelerate(Junior.ACCELERATION * percent)
+        if Car.TURN_WHEEL in actions:
+            turnAngle = actions[Car.TURN_WHEEL]
+            self.setWheelAngle(turnAngle)
+    
+    def intelligent_autonomousAction(self, beliefs, parkedCars, chkPtsSoFar):
+        oldPos = Vec2d(self.pos.x, self.pos.y)
+        oldDir = Vec2d(self.dir.x, self.dir.y)
+        oldVel = Vec2d(self.velocity.x, self.velocity.y)
+        actions = self.getAutonomousActions(beliefs, parkedCars, chkPtsSoFar)
         assert self.pos == oldPos
         assert self.dir == oldDir
         assert self.velocity == oldVel

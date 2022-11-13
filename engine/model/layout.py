@@ -68,3 +68,14 @@ class Layout(object):
         height = self.getHeight()
         assert(width % Const.BELIEF_TILE_SIZE == 0)
         assert(height % Const.BELIEF_TILE_SIZE == 0)
+    
+    def getCheckPoints(self):
+        cpts =  self.data['finish']
+        cptBlocks = []
+        for cpt in cpts:
+            # the tile corresponding to cpt:
+            # cpt:[x1, y1, x2, y2]; cpt's tile: [row1, col1]==[y1, x1]
+            cptBlock = (cpt[1], cpt[0])
+            cptBlocks.append(cptBlock)
+        return cptBlocks
+  

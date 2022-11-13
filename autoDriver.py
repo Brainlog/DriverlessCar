@@ -6,6 +6,7 @@ Chris Piech (piech@cs.stanford.edu). It was inspired by the Pacman projects.
 '''
 from engine.model.car.junior import Junior
 from engine.model.car.car import Car
+from engine.model.layout import Layout
 
 import util
 import random
@@ -37,7 +38,7 @@ class AutoDriver(Junior):
         if self.burnInIterations > 0:
             self.burnInIterations -= 1
             return[]
-        
+    
         # Chose a next node to drive towards. Note that you can ask
         # a if its a terminal using node.isTerminal()
         if self.nodeId == None:
@@ -60,6 +61,37 @@ class AutoDriver(Junior):
         if driveForward:
             actions[Car.DRIVE_FORWARD] = 1.0
         return actions
+
+
+    def _getAutonomousActions(self, beliefOfOtherCars, agentGraph):
+        # Don't start until after your burn in iterations have expired
+        if self.burnInIterations > 0:
+            self.burnInIterations -= 1
+            return[]
+    
+        # Chose a next node to drive towards. Note that you can ask
+        # a if its a terminal using node.isTerminal()
+        if self.nodeId == None:
+            self.nodeId = agentGraph.getNearestNode(self.pos)
+        if self.nextId == None:
+            self.choseNextId(agentGraph)
+        if agentGraph.atNode(self.nextId, self.pos):
+            self.nodeId = self.nextId
+            self.choseNextId(agentGraph)
+          
+        # given a next node, drive towards that node. Stop if you
+        # are too close to another car
+        goalPos = agentGraph.getNode(self.nextId).getPos()
+        vectorToGoal = goalPos - self.pos
+        wheelAngle = -vectorToGoal.get_angle_between(self.dir)
+        driveForward = not self.isCloseToOtherCar(beliefOfOtherCars)
+        actions = {
+            Car.TURN_WHEEL: wheelAngle
+        }
+        if driveForward:
+            actions[Car.DRIVE_FORWARD] = 1.0
+        return actions
+
     
     # Funciton: Is Close to Other Car
     # ---------------------

@@ -6,10 +6,10 @@ Created on Jun 11, 2013
 from engine.model.car.car import Car
 from engine.view.display import Display
 from engine.vector import Vec2d
-from submission import ParticleFilter, ExactInference
 from none import NoInference
 from engine.const import Const
 import random
+from estimator import Estimator
 
 class Agent(Car):
     
@@ -18,7 +18,7 @@ class Agent(Car):
     
     colorCounter = 0
     
-    def __init__(self, startNode, agentGraph, model, agentComm):
+    def __init__(self, startNode, agentGraph, model, agentComm, parkBool):
         self.agentGraph = agentGraph
         self.model = model
         self.agentComm = agentComm
@@ -29,7 +29,7 @@ class Agent(Car):
         self.goalNode = self.getGoalNode(startNode.getId())
         self.hasInference = False
         self.color = self.initColor()
-        
+        self.isParked = parkBool
         self.inIntersection = True
         self.claimedIntersection = None
     
@@ -128,14 +128,14 @@ class Agent(Car):
         if not self.hasInference:
             rows = self.model.getBeliefRows()
             cols = self.model.getBeliefCols()
-            if Const.INFERENCE == 'particleFilter':
-                self.inference = ParticleFilter(rows, cols)
-            elif Const.INFERENCE == 'exactInference':
-                self.inference = ExactInference(rows, cols)
+        
+            if Const.INFERENCE == 'estimator':
+                self.inference = Estimator(rows, cols)
             elif Const.INFERENCE == 'none':
                 self.inference = NoInference(rows, cols)
             else:
                 raise Exception(Const.INFERENCE + ' not understood')
+
             self.hasInference = True
         return self.inference
     
@@ -144,3 +144,5 @@ class Agent(Car):
         self.getAcceleratorAction(vectorToGoal)
         self.getWheelAction(vectorToGoal)
         
+    def getParkedStatus(self):
+        return self.isParked

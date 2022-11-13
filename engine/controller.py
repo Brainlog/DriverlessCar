@@ -1,3 +1,4 @@
+# from datetime import _IsoCalendarDate
 from .model.model import Model
 from .const import Const
 from .view.display import Display
@@ -22,7 +23,6 @@ class Controller(object):
         self.errorCounter = Counter()
         self.consecutiveLate = 0
         
-        
     def learn(self, learner):
         self.isLearning = True
         self.learner = learner
@@ -40,8 +40,9 @@ class Controller(object):
         while not self.isGameOver():
             self.resetTimes()
             startTime = time.time()
-            self.printStats()
-            
+
+            # self.printStats()
+        
             self.otherCarUpdate()
             self.calculateError()
                         
@@ -121,7 +122,8 @@ class Controller(object):
         if self.iteration % Const.REPORT_ITER != 0: return
         print('-------------')
         print('iteration ' + str(self.iteration))
-        error = self.errorCounter.getMean() * Const.BELIEF_TILE_SIZE
+        # error = self.errorCounter.getMean() * Const.BELIEF_TILE_SIZE
+        error = 0
         print('error: ' + str(error))
         print('--------------')
         print('')
@@ -142,12 +144,20 @@ class Controller(object):
         if self.isLearning: return
         juniorX = self.model.junior.pos.x
         juniorY = self.model.junior.pos.y
-        for car in self.model.getOtherCars():
-            observation = car.getObservation(self.model.junior)
-            obsDist = observation.getDist()
-            inference = car.getInference()
-            inference.observe(juniorX, juniorY, obsDist)
         
+        for car in self.model.getOtherCars():
+        # for idx, car in enumerate(self.model.getOtherCars()): 
+            observation = car.getObservation(self.model.junior)
+            obsDist = observation.getDist() 
+            # print(f"ob{idx}: {obsDist}")                     
+            inference = car.getInference() 
+            parkedCar = car.getParkedStatus()
+
+            if Const.INFERENCE=='estimator':
+                inference.estimate(juniorX, juniorY, obsDist, parkedCar)
+            else:
+                inference.observe(juniorX, juniorY, obsDist)
+   
     def elapseTime(self):
         if self.isLearning: return
         if Const.CARS_PARKED: return
@@ -169,8 +179,11 @@ class Controller(object):
         start = time.time()
 
         try:
-            self.elapseTime()
-            self.observe()
+            if Const.INFERENCE == 'estimator':
+                self.observe()
+            else:
+                self.elapseTime()
+                self.observe()
         except  Exception as e:
             print('caught')
             traceback.print_exc()
@@ -252,5 +265,12 @@ class Controller(object):
                 Display.drawCar(car)
         else:
             Display.drawCar(self.model.getJunior())
-        Display.drawFinish(self.model.getFinish())
+
+        if not Const.MULTIPLE_GOALS:
+            Display.drawFinish(self.model.getFinish()) 
+        else:
+            # print(self.model.getFinish())
+            for checkpt in self.model.getFinish():
+                Display.drawFinish(checkpt) 
+          
         graphicsUtils.refresh()

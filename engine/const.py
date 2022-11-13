@@ -1,8 +1,7 @@
 
 
 class Const(object):
-    
-    INFERENCE_TYPES = ['none', 'particleFilter', 'exactInference']
+    INFERENCE_TYPES = ['none', 'estimator']
     TITLE = "Driverless Car Simulator"
     SONAR_STD = 20.0
     
@@ -33,8 +32,11 @@ class Const(object):
     
     EPSILON = 0.0001
 
-    WORLD = 'lombard'
-    
+    NUM_CHECKPTS = 3
+    MULTIPLE_GOALS = False
+    INTELLIGENT_DRIVER = False
+    COMPLETED_CHECKPTS = 0
+    TIME_OUT = 6000000 # seconds (will be different at time of evaluation)
 
     
     
