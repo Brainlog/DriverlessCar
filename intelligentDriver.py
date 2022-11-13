@@ -30,6 +30,7 @@ class IntelligentDriver(Junior):
     def __init__(self, layout: Layout):
         self.burnInIterations = 30
         self.layout = layout 
+      
         # self.worldGraph = None
         self.worldGraph = self.createWorldGraph()
         self.checkPoints = self.layout.getCheckPoints() # a list of single tile locations corresponding to each checkpoint
@@ -95,6 +96,146 @@ class IntelligentDriver(Junior):
     # Given the current belief about where other cars are and a graph of how
     # one can driver around the world, chose the next position.
     #######################################################################################
+    
+    def graphview(self, graph, beliefOfOtherCars: list, parkedCars:list , chkPtsSoFar: int):
+        nodes = graph.nodes
+        edges = graph.edges
+        rows = max([x[0] for x in nodes]) + 1
+        cols = max([x[1] for x in nodes]) + 1
+        matrix = [[0 for x in range(cols)] for y in range(rows)]
+        
+        for edge in edges:
+            matrix[edge[0][0]][edge[0][1]] = 1 # we can move from edge[0] to edge[1]
+            matrix[edge[1][0]][edge[1][1]] = 1
+            
+            
+        for point in self.checkPoints:
+            matrix[point[0]][point[1]] = 2 # 2 is for checkpoints
+            
+        mylocation = self.getPos()
+        col = util.xToCol(mylocation[0])
+        row = util.yToRow(mylocation[1])
+        matrix[row][col] = 3  # my location
+        
+        
+        obstacles = []
+        for car in beliefOfOtherCars:
+            spread = 5
+            maxindex = (0,0)
+            carobs = []
+            for i in range(len(car.grid)):
+                for j in range(len(car.grid[i])):
+                    carobs.append((car.grid[i][j],i,j))
+            carobs.sort(reverse=True)
+            for i in range(spread):
+                obstacles.append((carobs[i][1],carobs[i][2]))
+                    
+        
+        for obstacle in obstacles:
+            matrix[obstacle[0]][obstacle[1]] = 4 # 4 is for obstacles
+              
+        return matrix
+    
+    def existcheck(self, coordinate, matrix):
+        numrows = len(matrix)
+        numcols = len(matrix[0])
+        if coordinate[0] >= 0 and coordinate[0] < numrows and coordinate[1] >= 0 and coordinate[1] < numcols:
+            return True
+        return False
+    
+
+    
+    def backuputils(self, originalmatrix, matrix, iterations):
+        backupmatrix = [[0 for j in range(len(matrix[0]))] for i in range(len(matrix))]
+        backupmatrix = matrix.copy()
+        for k in range(iterations):
+            for i in range(len(matrix)):
+                for j in range(len(matrix[0])):
+                    if originalmatrix[i][j] != 0 and originalmatrix[i][j] != 4 and originalmatrix[i][j] != 2:
+                        lis = [(i+1,j), (i+1,j+1), (i+1,j-1), (i-1,j), (i-1,j+1), (i-1,j-1), (i,j+1), (i,j-1)]
+                        for elem in lis:
+                            if self.existcheck(elem, matrix) == True:
+                                if (elem, (i,j)) in self.transProb.keys():
+                                    p = self.transProb[(elem, (i,j))]
+                                    a = (0.1*p*backupmatrix[elem[0]][elem[1]])
+                                    backupmatrix[i][j] += a
+                                else:
+                                    discount = 0.001
+                                    a = (discount*backupmatrix[elem[0]][elem[1]])
+                                    backupmatrix[i][j] += a
+
+            
+        return backupmatrix
+    
+    def recursematrix(self, matrix, safematrix, discount, coordinate):
+        newmatrix = safematrix.copy()
+        def recurse(discount, coordinate):
+            if self.existcheck(coordinate, safematrix) == True:
+                    lis = [(coordinate[0]+1,coordinate[1]), (coordinate[0]+1,coordinate[1]+1), (coordinate[0]+1,coordinate[1]-1), (coordinate[0]-1,coordinate[1]), (coordinate[0]-1,coordinate[1]+1), (coordinate[0]-1,coordinate[1]-1), (coordinate[0],coordinate[1]+1), (coordinate[0],coordinate[1]-1)]
+                    for elem in lis:
+                        if self.existcheck(elem, safematrix) == True:
+                            if newmatrix[elem[0]][elem[1]] == 0 and matrix[elem[0]][elem[1]] == 1:
+                                newmatrix[elem[0]][elem[1]] += newmatrix[coordinate[0]][coordinate[1]]*discount
+                                recurse(discount, elem)
+            return 
+        recurse(discount, coordinate)
+        return newmatrix
+    
+    def recursematrixfull(self, matrix, safematrix, discount):
+        newmatrix = safematrix.copy()
+        for i in range(len(safematrix)):
+            for j in range(len(safematrix[0])):
+                if safematrix[i][j] != 0:
+                    newmatrix = self.recursematrix(matrix, newmatrix, discount, (i,j))
+        return newmatrix
+        
+                    
+                    
+                       
+    def rewardforstates(self, matrix):
+        numrows = len(matrix)
+        numcols  = len(matrix[0])
+        safematrix = [[0 for x in range(numcols)] for y in range(numrows)]
+        for i in range(len(safematrix)):
+            for j in range(len(safematrix[0])):
+                if matrix[i][j] == 2: # goals
+                    safematrix[i][j] = 1000
+                if matrix[i][j] == 2 and (i,j) == self.checkPoints[0]:
+                    safematrix[i][j] = 10000
+        for i in range(len(safematrix)):
+            for j in range(len(safematrix[0])):
+                if matrix[i][j] == 4: # moving obstacles
+                    safematrix[i][j] = -1000
+        return safematrix
+    
+    def blockways(self, matrix, safematrix):
+        newmatrix = [[0 for x in range(len(matrix[0]))] for y in range(len(matrix))]
+        for i in range(len(matrix)):
+            for j in range(len(matrix[0])):
+                if matrix[i][j] == 0:
+                    newmatrix[i][j] = -10000
+                elif i == 0 or j == 0 or i == len(matrix)-1 or j == len(matrix[0])-1:
+                    newmatrix[i][j] = -10000
+                else:
+                    a = safematrix[i][j]
+                    newmatrix[i][j] = a
+        return newmatrix
+    
+    def normalize(self, matrix):
+        newmatrix = [[-10000 for x in range(len(matrix[0]))] for y in range(len(matrix))]
+        sum = 0
+        for i in range(len(matrix)):
+            for j in range(len(matrix[0])):
+                if matrix[i][j] != -10000:
+                    sum += matrix[i][j]
+        for i in range(len(matrix)):
+            for j in range(len(matrix[0])):
+                if matrix[i][j] != -10000:
+                    newmatrix[i][j] = matrix[i][j]/sum
+        return newmatrix
+                    
+        
+    
     def getNextGoalPos(self, beliefOfOtherCars: list, parkedCars:list , chkPtsSoFar: int):
         '''
         Input:
@@ -111,25 +252,73 @@ class IntelligentDriver(Junior):
         - You can explore some files "layout.py", "model.py", "controller.py", etc.
          to find some methods that might help in your implementation. 
         '''
-        print(chkPtsSoFar)
-        print(beliefOfOtherCars[0].grid)
-        print(parkedCars)
-        goalPos = (0,0) # next tile 
-        moveForward = True
-
-        currPos = self.getPos() # the current 2D location of the AutoCar (refer util.py to convert it to tile (or grid cell) coordinate)
-        col = xt = int(currPos[0])
-        row = yt = int(currPos[1])
-        goalPos = (row, col)
+        graph = self.worldGraph
+        states = (self.graphview(graph, beliefOfOtherCars, parkedCars, chkPtsSoFar))
+        safematrix = self.rewardforstates(states)
+        backupmatrix = self.recursematrixfull(states, safematrix, 0.9)
+        finalmatrix = self.blockways(states, backupmatrix)
+        print(self.checkPoints)
+        # finalmatrix = self.normalize(finalmatrix2)
+        for line in finalmatrix:
+            print(line)
+        print("-----------------------")
+        currPos = self.getPos()
+        col  = util.xToCol(currPos[0])
+        row  = util.yToRow(currPos[1])
+        currloc = (row, col)      
+        lis = [(row+1,col), (row+1,col+1), (row+1,col-1), (row-1,col), (row-1,col+1), (row-1,col-1), (row,col+1), (row,col-1)]
         
-        # BEGIN_YOUR_CODE 
+        maxindex = lis[0]
+        for elem in lis:
+            if self.existcheck(elem, finalmatrix) == True:
+                if finalmatrix[elem[0]][elem[1]] >= finalmatrix[maxindex[0]][maxindex[1]]:
+                    maxindex = elem  
+        print(maxindex , "    THIS IS THE MAX INDEX")
+        posx = util.colToX(maxindex[1])
+        posy = util.rowToY(maxindex[0])
+        if currloc == self.checkPoints[0]:
+            self.checkPoints.pop(0)
 
-        # END_YOUR_CODE
+        return (posx, posy), True
+        
+
+
+        
+       
         return goalPos, moveForward
 
     # DO NOT MODIFY THIS METHOD !
     # Function: Get Autonomous Actions
     # --------------------------------
+    
+    def djikstra(self, graph, start, end):
+        dist = {}
+        prev = {}
+        for node in graph:
+            dist[node] = float('inf')
+            prev[node] = None
+        dist[start] = 0
+        Q = set(graph)
+        while Q:
+            u = min(Q, key=dist.get)
+            Q.remove(u)
+            if dist[u] == float('inf'):
+                break
+            for v in graph[u]:
+                alt = dist[u] + graph[u][v]
+                if alt < dist[v]:
+                    dist[v] = alt
+                    prev[v] = u
+        path = []
+        u = end
+        while prev[u]:
+            path.append(u)
+            u = prev[u]
+        path.append(u)
+        path.reverse()
+        return path
+    
+    
     def getAutonomousActions(self, beliefOfOtherCars: list, parkedCars: list, chkPtsSoFar: int):
         # Don't start until after your burn in iterations have expired
         if self.burnInIterations > 0:

@@ -72,7 +72,7 @@ class Estimator(object):
         for i in range(numrows):
             for j in range(numcols):
                 if (sample, (i, j)) in self.transProb.keys():
-                    p = self.transProb[((sample, (i, j)))]
+                    p = self.transProb[(sample, (i, j))]
                     distribution[i][j] = p
         sample = self.gensamples(1, distribution)[0]
      
