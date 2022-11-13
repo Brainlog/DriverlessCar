@@ -11,6 +11,7 @@ class Estimator(object):
     def __init__(self, numRows: int, numCols: int):
         self.belief = util.Belief(numRows, numCols) 
         self.transProb = util.loadTransProb() 
+        self.first = True
             
     ##################################################################################
     # [ Estimation Problem ]
@@ -36,6 +37,9 @@ class Estimator(object):
     # - Do normalize self.belief after updating !!
 
     ###################################################################################
+    def changefirst(self):
+        self.first = False
+        return 
     def gensamples(self, totalsamples, distributions) -> list:
         distribution = []
         numrows = len(distributions)
@@ -81,7 +85,9 @@ class Estimator(object):
         return newsamples
     
     def weightofsample(self, sample, incidenctvariable, mycoordinate, deviation):
-        mean = math.sqrt((sample[0] - mycoordinate[0])**2 + (sample[1] - mycoordinate[1])**2)
+        positionsampleX = util.colToX(sample[1])
+        positionsampleY = util.rowToY(sample[0])
+        mean = math.sqrt((positionsampleX - mycoordinate[0])**2 + (positionsampleY - mycoordinate[1])**2)
         val = pdf(mean, deviation, incidenctvariable)
         return val
     
@@ -116,11 +122,20 @@ class Estimator(object):
         numrows = self.belief.numRows
         numcols = self.belief.numCols
         # generated samples
+        samples = []
+        initialdist = [[0 for j in range(numcols)] for i in range(numrows)]
+
+        # if self.first == True:
+        #     samples = self.gensamples(10, self.belief.grid)
+        #     self.changefirst()
         samples = self.gensamples(totalsamples, self.belief.grid)
+
         # transitioned samples to new location incoroporating transition probabilities
         transitionsamples = self.alltransitions(samples, numrows, numcols)
         # weight of each sample
         deviation = Const.SONAR_STD
+        col = util.xToCol(posX)
+        row = util.yToRow(posY)
         wtsamples = self.weightedsamples(transitionsamples, observedDist, (posX, posY), deviation)
         # weighted distribution
         wtdist = self.wtdistribution(wtsamples, numrows, numcols)
@@ -131,9 +146,9 @@ class Estimator(object):
         for i in range(numrows):
             for j in range(numcols):
                 self.belief.setProb(i, j, finaldistribution[i][j])
-        for hue in self.belief.grid:
-            print(hue)
-        print("---------------")
+        # for hue in self.belief.grid:
+        #     print(hue)
+        # print("---------------")
         return
   
     def getBelief(self) -> Belief:

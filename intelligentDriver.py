@@ -26,7 +26,6 @@ class Graph(object):
 # ---------------------
 # An intelligent driver that avoids collisions while visiting the given goal locations (or checkpoints) sequentially. 
 class IntelligentDriver(Junior):
-
     # Funciton: Init
     def __init__(self, layout: Layout):
         self.burnInIterations = 30
@@ -112,10 +111,17 @@ class IntelligentDriver(Junior):
         - You can explore some files "layout.py", "model.py", "controller.py", etc.
          to find some methods that might help in your implementation. 
         '''
-        goalPos = (0, 0) # next tile 
+        print(chkPtsSoFar)
+        print(beliefOfOtherCars[0].grid)
+        print(parkedCars)
+        goalPos = (0,0) # next tile 
         moveForward = True
 
         currPos = self.getPos() # the current 2D location of the AutoCar (refer util.py to convert it to tile (or grid cell) coordinate)
+        col = xt = int(currPos[0])
+        row = yt = int(currPos[1])
+        goalPos = (row, col)
+        
         # BEGIN_YOUR_CODE 
 
         # END_YOUR_CODE
