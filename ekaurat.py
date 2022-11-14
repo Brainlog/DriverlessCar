@@ -9,4 +9,5 @@ dict[(1,2)].append(3)
 l = dict[(1,2)]
 l.reverse()
 print(dict)
-
+sp = ' '
+print(sp*4+'b')

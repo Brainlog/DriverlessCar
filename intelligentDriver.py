@@ -194,7 +194,9 @@ class IntelligentDriver(Junior):
     def printmat(self, matrix):
         for i in range(len(matrix)):
             for j in range(len(matrix[0])):
-                print(matrix[i][j],end=" ")
+                val = len(str(matrix[i][j]))
+                sp = ' '
+                print(matrix[i][j],end=sp*(6-val))
             print()
         return
   
@@ -217,12 +219,12 @@ class IntelligentDriver(Junior):
         (grow,gcol)=goal
         printingmatrix = grid.copy() 
         queue = []
-        if(grid[srow][scol]!=1000):
-            queue.append((grid[srow][scol],(srow,scol),0))
+        # if(grid[srow][scol]!=1000):
+        queue.append((grid[srow][scol],(srow,scol),0))
         traj = []
         pathdict = {}
         pathgot = False
-        print(f'QUEUE: {queue}')
+        print(f'QUEUE: {queue} GRID INITIAL:')
         self.printmat(printingmatrix)
         visitdict = {}
         i=0
@@ -253,6 +255,7 @@ class IntelligentDriver(Junior):
                         
                     traj.reverse()
                     if(debug):
+                        print(f'GRID with PATH: ')
                         self.printmat(printingmatrix)
                         print(f'PATH FROM DJIKSTRA: {traj}')
                         
@@ -337,7 +340,12 @@ class IntelligentDriver(Junior):
         
         # if currloc == self.checkPoints[0]:
         #     return (posx, posy), False   
-        if currloc == self.checkPoints[0]:
+        checkposx = 0
+        checkposy = 0
+        if len(self.checkPoints) >= 1:
+            checkposx =  util.colToX(self.checkPoints[0][1])
+            checkposy = util.rowToY(self.checkPoints[0][1])
+        if len(self.checkPoints)>1 and currloc == self.checkPoints[0]:
             self.checkPoints.pop(0)
            
             
