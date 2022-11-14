@@ -153,8 +153,10 @@ class IntelligentDriver(Junior):
                     safematrix[i][j] = 100
                 elif matrix[i][j] == 0:
                     safematrix[i][j]= 1000
-                elif i == 0 or j == 0 or j == numcols-1 or i == numrows-1:
-                    safematrix[i][j] = 1000
+                # elif i == 0 or j == 0 or j == numcols-1 or i == numrows-1:
+                    # safematrix[i][j] = 1000
+                elif matrix[i][j] == 2:
+                    safematrix[i][j] = 2
                 else:
                     safematrix[i][j] = matrix[i][j]
         return safematrix
@@ -268,6 +270,15 @@ class IntelligentDriver(Junior):
                             queue.append((grid[nr][nc]+((level+1)*0.1),neighbour,level+1))
                             pathdict[(level+1,neighbour)] = currcell
                             visitdict[neighbour] = 1
+                        # elif(grid[nr][nc]==100):
+                            
+                    else:
+                        pass
+                        # if(grid[nr][nc]>=0 and grid[nr][nc]!=1000):
+                        #     queue.append((grid[nr][nc]+((level+1)*100),neighbour,level+1))
+                        #     pathdict[(level+1,neighbour)] = currcell
+                        #     visitdict[neighbour] = 1
+                            
                                 
             queue.sort()
             
