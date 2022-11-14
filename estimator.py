@@ -3,6 +3,7 @@ from util import Belief, pdf
 from engine.const import Const
 import random as rd
 import math 
+import time
 
 # Class: Estimator
 #----------------------
@@ -12,6 +13,7 @@ class Estimator(object):
         self.belief = util.Belief(numRows, numCols) 
         self.transProb = util.loadTransProb() 
         self.first = True
+        self.highesttrans = {}
             
     ##################################################################################
     # [ Estimation Problem ]
@@ -68,20 +70,33 @@ class Estimator(object):
         return distribution
     
     def transition(self, sample, numrows, numcols):
-        distribution = [[0.0000000000000000000000000000000000000000000000000000001 for j in range(numcols)] for i in range(numrows)]
-        for i in range(numrows):
-            for j in range(numcols):
-                if (sample, (i, j)) in self.transProb.keys():
-                    p = self.transProb[(sample, (i, j))]
-                    distribution[i][j] = p
-        sample = self.gensamples(1, distribution)[0]
-     
-        return sample
+        lis = self.highesttrans[sample].copy()
+        # print(f'HIGHEST TRANS FOR SAMPLE {sample}: {lis}')
+        # print(lis)
+        if len(lis) != 0:
+            dis = [0.000000001 for i in range(len(lis))]
+            for i in range(len(lis)):
+                if (sample,lis[i]) in self.transProb.keys():
+                    if self.transProb[sample,lis[i]] != 0:
+                        dis[i] = self.transProb[sample,lis[i]] 
+            
+            nodes = [lis[i] for i in range(len(lis))]
+            random_choice = rd.choices(nodes, dis, k = 1)  
+            return random_choice[0]
+        return None 
     
-    def alltransitions(self, samples, numrows, numcols):
+    def alltransitions(self, samples, numrows, numcols, diffuse):
         newsamples = []
         for sample in samples:
-            newsamples.append(self.transition(sample, numrows, numcols))
+            if diffuse:
+                t = self.transition(sample, numrows, numcols)
+                if t != None:
+                    newsamples.append(self.transition(sample, numrows, numcols))
+            else:
+                t = self.transition1(sample, numrows, numcols)
+                if t != None:
+                    newsamples.append(self.transition1(sample, numrows, numcols))
+            # print(time.time()- timemain, " This is for one transition")
         return newsamples
     
     def weightofsample(self, sample, incidenctvariable, mycoordinate, deviation):
@@ -124,14 +139,38 @@ class Estimator(object):
         # generated samples
         samples = []
         initialdist = [[0 for j in range(numcols)] for i in range(numrows)]
+        if self.highesttrans == {}:
+            print('REACHED HERE')
+            for i in range(numrows):
+                for j in range(numcols):
+                    self.highesttrans[(i,j)] = []
+            # print(self.highesttrans)
+            
+            
+            for i in range(numrows):
+                for j in range(numcols):
+                    for k in range(numrows):
+                        for z in range(numcols):
+                            if ((i,j),(k,z)) in  self.transProb.keys() :
+                                self.highesttrans[(i,j)].append([self.transProb[(i,j),(k,z)],(k,z)])
+                            
+                    lis = self.highesttrans[(i,j)]
+                    # lis = [*set(lis)]
+                    lis.sort()
+                    lis.reverse()
+                    cells = int(numrows*numcols)
+                    lis = lis[0:min(10,cells)]
+                    lis = [lis[i][1] for i in range(0,len(lis))]
+                    self.highesttrans[(i,j)] = lis
 
         # if self.first == True:
         #     samples = self.gensamples(10, self.belief.grid)
         #     self.changefirst()
         samples = self.gensamples(totalsamples, self.belief.grid)
-
+        timestart = time.time()
         # transitioned samples to new location incoroporating transition probabilities
-        transitionsamples = self.alltransitions(samples, numrows, numcols)
+        transitionsamples = self.alltransitions(samples, numrows, numcols, True)
+        print(time.time()-timestart, "  this is transition time")
         # weight of each sample
         deviation = Const.SONAR_STD
         col = util.xToCol(posX)
