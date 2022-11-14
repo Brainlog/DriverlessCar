@@ -30,7 +30,7 @@ class IntelligentDriver(Junior):
     def __init__(self, layout: Layout):
         self.burnInIterations = 30
         self.layout = layout 
-      
+        self.mycheckpoints = []
         # self.worldGraph = None
         self.worldGraph = self.createWorldGraph()
         self.checkPoints = self.layout.getCheckPoints() # a list of single tile locations corresponding to each checkpoint
@@ -120,7 +120,7 @@ class IntelligentDriver(Junior):
         
         obstacles = []
         for car in beliefOfOtherCars:
-            spread = 5
+            spread = 7
             maxindex = (0,0)
             carobs = []
             for i in range(len(car.grid)):
@@ -291,21 +291,21 @@ class IntelligentDriver(Junior):
         neighbours.append((crow+1,ccol+1))
         return neighbours
 
-    def shortestpathTraj(self, grid, start, goal, debug): #using bfs, #we can go to 1, 0 means blocked
+    def shortestpathTraj(self, grid, start, goal, debug, movingconsider): #using bfs, #we can go to 1, 0 means blocked
         (srow,scol)=start
         (grow,gcol)=goal
-        printingmatrix = grid.copy() 
+        # printingmatrix = grid.copy() 
         queue = []
         queue.append(((srow,scol),0))
         traj = []
         pathdict = {}
         pathgot = False
         # 
-        i=0
+        # i=0
         visitdict = {}
         # while(i<10):
-        while(len(queue)>0 or not(pathgot)):
-            print(queue[0])
+        while(len(queue)>0 and not(pathgot)):
+            # print(queue[0])
             currcell = queue[0][0]
             level = queue[0][1]
             queue.pop(0)
@@ -318,57 +318,52 @@ class IntelligentDriver(Junior):
                     pathgot = True
                     destcell = neighbour
                     traj.append(neighbour)
-                    printingmatrix[neighbour[0]][neighbour[1]] = 'X'
+                    # printingmatrix[neighbour[0]][neighbour[1]] = 'X'
                     destcell = currcell
                     traj.append(currcell)
-                    printingmatrix[currcell[0]][currcell[1]] = 'X'
+                    # printingmatrix[currcell[0]][currcell[1]] = 'X'
                     
                     while(destcell!=start):
                         destcell = pathdict[(level,destcell)]
                         traj.append(destcell)
-                        printingmatrix[destcell[0]][destcell[1]] = 'X'
+                        # printingmatrix[destcell[0]][destcell[1]] = 'X'
                         level -=1
                         
                     traj.reverse()
                     if(debug):
-                        self.printmat(printingmatrix)
+                        # self.printmat(printingmatrix)
                         print(traj)
                     return traj
                 nr = neighbour[0]
                 nc = neighbour[1]
                 if(self.indexbound(len(grid),len(grid[0]),nr,nc)):
-                    if(grid[nr][nc]==1):
-                        if(neighbour not in visitdict.keys()):
-                            queue.append((neighbour,level+1))
-                            pathdict[(level+1,neighbour)] = currcell
-                            visitdict[neighbour] = 1
-            i+=1
+                    if movingconsider == False:
+                        if(grid[nr][nc]==1):
+                            if(neighbour not in visitdict.keys()):
+                                queue.append((neighbour,level+1))
+                                pathdict[(level+1,neighbour)] = currcell
+                                visitdict[neighbour] = 1
+                    else:
+                        if(grid[nr][nc]==1 or grid[nr][nc]==4):
+                            if(neighbour not in visitdict.keys()):
+                                queue.append((neighbour,level+1))
+                                pathdict[(level+1,neighbour)] = currcell
+                                visitdict[neighbour] = 1
+                                
                         
-        return None #goal cannot be reached
+            # i+=1
+                        
+        return traj #goal cannot be reached
                 
 # matrix1 = [[1 for i in range(10)] for j in range(6)]
-
-        
-        
-            
-            
-        
-        
     
-            
-    
+  
     def ispathsafe(self, matrix, path):
         pass
     
     def iswesafe(self, matrix, coordinate):
         pass
-    
-  
-    
-    
-    
-
-     
+ 
       
     def getNextGoalPos(self, beliefOfOtherCars: list, parkedCars:list , chkPtsSoFar: int):
         '''
@@ -387,11 +382,10 @@ class IntelligentDriver(Junior):
          to find some methods that might help in your implementation. 
         '''
         graph = self.worldGraph
+        movingobstacles = True
         states = (self.graphview(graph, beliefOfOtherCars, parkedCars, chkPtsSoFar))
-        
-        safematrix = self.rewardforstates(states)
-        backupmatrix = self.recursematrixfull(states, safematrix, 0.9)
-        finalmatrix = self.blockways(states, backupmatrix)
+       
+
         # print(self.checkPoints)
         # # finalmatrix = self.normalize(finalmatrix2)
         # for line in finalmatrix:
@@ -401,40 +395,98 @@ class IntelligentDriver(Junior):
         col  = util.xToCol(currPos[0])
         row  = util.yToRow(currPos[1])
         currloc = (row, col)      
-        lis = [(row+1,col), (row+1,col+1), (row+1,col-1), (row-1,col), (row-1,col+1), (row-1,col-1), (row,col+1), (row,col-1)]
-        
-        maxindex = lis[0]
-        for elem in lis:
-            if self.existcheck(elem, finalmatrix) == True:
-                if finalmatrix[elem[0]][elem[1]] >= finalmatrix[maxindex[0]][maxindex[1]]:
-                    maxindex = elem  
-        print(maxindex , "    THIS IS THE MAX INDEX")
-        posx = util.colToX(maxindex[1])
-        posy = util.rowToY(maxindex[0])
+       
         if currloc == self.checkPoints[0]:
             self.checkPoints.pop(0)
+            
+        
         newmatrix = [[0 for x in range(len(states[0]))] for y in range(len(states))]
         for i in range(len(states)):
             for j in range(len(states[0])):
                 newmatrix[i][j] = [states[i][j],0]
-        path = self.shortestpathTraj(states,currloc,self.checkPoints[0],True)
-        print(path)
+        # if self.mycheckpoints == []:
+        path = self.shortestpathTraj(states,currloc,self.checkPoints[0],False, False)
+        print(f'SEARCHED FROM SRC: {currloc} TO DEST: {self.checkPoints[0]}, obtained path {path}')
+        #     if path != None:
+        #             self.mycheckpoints.append(path[len(path)//2])
+        # else:
+        #     path = self.shortestpathTraj(states,currloc,self.mycheckpoints[0],True)
+           
+        # print(path)
+        
+        # if len(self.mycheckpoints) > 0 and currloc == self.mycheckpoints[0]:
+        # self.mycheckpoints.pop()
         
         
         # path = (self.dfs(states, currloc, self.checkPoints[0]))
         # print(currloc)
         # print(self.checkPoints[0])
         # print(path)
+        posx = currPos[0]
+        posy = currPos[1]
+        safety = False
+        if path == [] and safety == True:
+            safematrix = self.rewardforstates(states)
+            backupmatrix = self.recursematrixfull(states, safematrix, 0.9)
+            finalmatrix = self.blockways(states, backupmatrix)
+            lis = [(row+1,col), (row+1,col+1), (row+1,col-1), (row-1,col), (row-1,col+1), (row-1,col-1), (row,col+1), (row,col-1)]
         
-        if len(path) == 1:
-            posx = util.colToX(path[0][1])
-            posy = util.rowToY(path[0][0]) 
+            maxindex = lis[0]
+            for elem in lis:
+                if self.existcheck(elem, finalmatrix) == True:
+                    maxindex = elem
+            for elem in lis:
+                if self.existcheck(elem, finalmatrix) == True:
+                    if finalmatrix[elem[0]][elem[1]] >= finalmatrix[maxindex[0]][maxindex[1]]:
+                        maxindex = elem  
+            # print(maxindex , "    THIS IS THE MAX INDEX")
+            
+            posx = util.colToX(maxindex[1])
+            posy = util.rowToY(maxindex[0])
+            if currloc == maxindex:
+                return currPos, False           
+            return (posx, posy), True
+        elif path == [] and safety == False:
+           
+            path2 = self.shortestpathTraj(states,currloc,self.checkPoints[0],False, True)
+            if currloc == self.checkPoints[0]:
+                    self.checkPoints.pop(0)
+            endpoint = self.checkPoints[0]
+            pathbackup = path2
+            while len(path2) != 0:
+                # print(f"Searching for path2 at location : {currloc} and endpoint is {endpoint}")
+                path2 = self.shortestpathTraj(states,currloc,endpoint,False, True)
+                # print(f'path2 obtained: {path2}')
+                if(len(path2) != 0):
+                    endpoint = path2[len(path2)//2]
+                    # print(f'Searching for path at location : {currloc} and endpoint is {endpoint}')
+                    path = self.shortestpathTraj(states,currloc,endpoint,False, False)
+                    # print(f'path obtained: {path}')
+                    if path != []:
+                        break
+            print(f'PATH OBTAINDED AFTER RESEARCH: {path} for endpoint {endpoint} (original endpoint: {self.checkPoints[0]})')
+            if path == []:
+                print("NO PATH FOUND")
+                print('STOPPED')
+                return currPos, False
+            # else:
+                # path = pathbackup
+            else:
+                posx = util.colToX(path[1][1])
+                posy = util.rowToY(path[1][0]) 
+            
+        elif len(path) == 1:
+            posx = util.colToX(path[1][1])
+            posy = util.rowToY(path[1][0]) 
         else:
+            # print(path)
+            print(f'Obtained path by simple BFS: {path} from src: {currloc} to dest: {self.checkPoints[0]}')
             posx = util.colToX(path[1][1])
             posy = util.rowToY(path[1][0])     
         
-        if currloc == self.checkPoints[0]:
-            return (posx, posy), False      
+        # if currloc == self.checkPoints[0]:
+        #     return (posx, posy), False   
+           
             
         return (posx, posy), True
         
