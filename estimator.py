@@ -170,7 +170,7 @@ class Estimator(object):
         timestart = time.time()
         # transitioned samples to new location incoroporating transition probabilities
         transitionsamples = self.alltransitions(samples, numrows, numcols, True)
-        print(time.time()-timestart, "  this is transition time")
+        # print(time.time()-timestart, "  this is transition time")
         # weight of each sample
         deviation = Const.SONAR_STD
         col = util.xToCol(posX)

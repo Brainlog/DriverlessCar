@@ -98,6 +98,7 @@ class IntelligentDriver(Junior):
     #######################################################################################
     
     def graphview(self, graph, beliefOfOtherCars: list, parkedCars:list , chkPtsSoFar: int):
+        spread = 7
         nodes = graph.nodes
         edges = graph.edges
         rows = max([x[0] for x in nodes]) + 1
@@ -120,7 +121,6 @@ class IntelligentDriver(Junior):
         
         obstacles = []
         for car in beliefOfOtherCars:
-            spread = 7
             maxindex = (0,0)
             carobs = []
             for i in range(len(car.grid)):
@@ -142,70 +142,21 @@ class IntelligentDriver(Junior):
         if coordinate[0] >= 0 and coordinate[0] < numrows and coordinate[1] >= 0 and coordinate[1] < numcols:
             return True
         return False
-    
-
-    
-    def backuputils(self, originalmatrix, matrix, iterations):
-        backupmatrix = [[0 for j in range(len(matrix[0]))] for i in range(len(matrix))]
-        backupmatrix = matrix.copy()
-        for k in range(iterations):
-            for i in range(len(matrix)):
-                for j in range(len(matrix[0])):
-                    if originalmatrix[i][j] != 0 and originalmatrix[i][j] != 4 and originalmatrix[i][j] != 2:
-                        lis = [(i+1,j), (i+1,j+1), (i+1,j-1), (i-1,j), (i-1,j+1), (i-1,j-1), (i,j+1), (i,j-1)]
-                        for elem in lis:
-                            if self.existcheck(elem, matrix) == True:
-                                if (elem, (i,j)) in self.transProb.keys():
-                                    p = self.transProb[(elem, (i,j))]
-                                    a = (0.1*p*backupmatrix[elem[0]][elem[1]])
-                                    backupmatrix[i][j] += a
-                                else:
-                                    discount = 0.001
-                                    a = (discount*backupmatrix[elem[0]][elem[1]])
-                                    backupmatrix[i][j] += a
-
-            
-        return backupmatrix
-    
-    def recursematrix(self, matrix, safematrix, discount, coordinate):
-        newmatrix = safematrix.copy()
-        def recurse(discount, coordinate):
-            if self.existcheck(coordinate, safematrix) == True:
-                    lis = [(coordinate[0]+1,coordinate[1]), (coordinate[0]+1,coordinate[1]+1), (coordinate[0]+1,coordinate[1]-1), (coordinate[0]-1,coordinate[1]), (coordinate[0]-1,coordinate[1]+1), (coordinate[0]-1,coordinate[1]-1), (coordinate[0],coordinate[1]+1), (coordinate[0],coordinate[1]-1)]
-                    for elem in lis:
-                        if self.existcheck(elem, safematrix) == True:
-                            if newmatrix[elem[0]][elem[1]] == 0 and matrix[elem[0]][elem[1]] == 1:
-                                newmatrix[elem[0]][elem[1]] += newmatrix[coordinate[0]][coordinate[1]]*discount
-                                recurse(discount, elem)
-            return 
-        recurse(discount, coordinate)
-        return newmatrix
-    
-    def recursematrixfull(self, matrix, safematrix, discount):
-        newmatrix = safematrix.copy()
-        for i in range(len(safematrix)):
-            for j in range(len(safematrix[0])):
-                if safematrix[i][j] != 0:
-                    newmatrix = self.recursematrix(matrix, newmatrix, discount, (i,j))
-        return newmatrix
-        
-                    
-                    
-                       
-    def rewardforstates(self, matrix):
+              
+    def safetymatrix(self, matrix):
         numrows = len(matrix)
         numcols  = len(matrix[0])
         safematrix = [[0 for x in range(numcols)] for y in range(numrows)]
         for i in range(len(safematrix)):
             for j in range(len(safematrix[0])):
-                if matrix[i][j] == 2: # goals
-                    safematrix[i][j] = 1000
-                if matrix[i][j] == 2 and (i,j) == self.checkPoints[0]:
-                    safematrix[i][j] = 10000
-        for i in range(len(safematrix)):
-            for j in range(len(safematrix[0])):
                 if matrix[i][j] == 4: # moving obstacles
-                    safematrix[i][j] = -1000
+                    safematrix[i][j] = 100
+                elif matrix[i][j] == 0:
+                    safematrix[i][j]= 1000
+                elif i == 0 or j == 0 or j == numcols-1 or i == numrows-1:
+                    safematrix[i][j] = 1000
+                else:
+                    safematrix[i][j] = matrix[i][j]
         return safematrix
     
     def blockways(self, matrix, safematrix):
@@ -233,37 +184,7 @@ class IntelligentDriver(Junior):
                 if matrix[i][j] != -10000:
                     newmatrix[i][j] = matrix[i][j]/sum
         return newmatrix
-    
-    def bfs(self, matrix, u, end):
-        queue = []
-        dict = {}
-        dict[0] = u
-        curr = 0
-        allnodes = []
-        queue.append([u, curr])
-        allnodes.append(u)
-        while len(queue) != 0:
-            element = queue.pop(0)
-            level = element[1]+1
-            node = element[0]
-            if node == end:
-                print("found")
-                return dict
-            matrix[node[0]][node[1]][1] = 1
-            print(matrix[node[0]][node[1]])
-            lis = [(node[0]+1,node[1]), (node[0]+1,node[1]+1), (node[0]+1,node[1]-1), (node[0]-1,node[1]), (node[0]-1,node[1]+1), (node[0]-1,node[1]-1), (node[0],node[1]+1), (node[0],node[1]-1)]
-            for elem in lis:
-                if self.existcheck(elem, matrix) == True:
-                    if matrix[elem[0]][elem[1]][0] == 1 and matrix[elem[0]][elem[1]][1] == 0:
-                        queue.append([elem, level])
-                        if level in dict.keys():
-                            dict[level].append(elem)
-                        else:
-                            dict[level] = [elem]
-                   
-        return None
-    
-    
+ 
     def indexbound(self, maxrow, maxcol, row, col):
         if (row < 0 or row >= maxrow or col < 0 or col >= maxcol):
             return False
@@ -294,20 +215,21 @@ class IntelligentDriver(Junior):
     def shortestpathTraj(self, grid, start, goal, debug, movingconsider): #using bfs, #we can go to 1, 0 means blocked
         (srow,scol)=start
         (grow,gcol)=goal
-        # printingmatrix = grid.copy() 
+        printingmatrix = grid.copy() 
         queue = []
-        queue.append(((srow,scol),0))
+        if(grid[srow][scol]!=1000):
+            queue.append((grid[srow][scol],(srow,scol),0))
         traj = []
         pathdict = {}
         pathgot = False
-        # 
-        # i=0
+        print(f'QUEUE: {queue}')
+        self.printmat(printingmatrix)
         visitdict = {}
-        # while(i<10):
+        i=0
         while(len(queue)>0 and not(pathgot)):
-            # print(queue[0])
-            currcell = queue[0][0]
-            level = queue[0][1]
+            cellvalue = queue[0][0]
+            currcell = queue[0][1]
+            level = queue[0][2]
             queue.pop(0)
             visitdict[currcell] = 1
             neighbours = self.neighblist(currcell)
@@ -318,40 +240,35 @@ class IntelligentDriver(Junior):
                     pathgot = True
                     destcell = neighbour
                     traj.append(neighbour)
-                    # printingmatrix[neighbour[0]][neighbour[1]] = 'X'
+                    printingmatrix[neighbour[0]][neighbour[1]] = 'X.X'
                     destcell = currcell
                     traj.append(currcell)
-                    # printingmatrix[currcell[0]][currcell[1]] = 'X'
+                    printingmatrix[currcell[0]][currcell[1]] = 'X.X'
                     
                     while(destcell!=start):
                         destcell = pathdict[(level,destcell)]
                         traj.append(destcell)
-                        # printingmatrix[destcell[0]][destcell[1]] = 'X'
+                        printingmatrix[destcell[0]][destcell[1]] = 'X.X'
                         level -=1
                         
                     traj.reverse()
                     if(debug):
-                        # self.printmat(printingmatrix)
-                        print(traj)
+                        self.printmat(printingmatrix)
+                        print(f'PATH FROM DJIKSTRA: {traj}')
+                        
                     return traj
                 nr = neighbour[0]
                 nc = neighbour[1]
                 if(self.indexbound(len(grid),len(grid[0]),nr,nc)):
-                    if movingconsider == False:
-                        if(grid[nr][nc]==1):
-                            if(neighbour not in visitdict.keys()):
-                                queue.append((neighbour,level+1))
-                                pathdict[(level+1,neighbour)] = currcell
-                                visitdict[neighbour] = 1
-                    else:
-                        if(grid[nr][nc]==1 or grid[nr][nc]==4):
-                            if(neighbour not in visitdict.keys()):
-                                queue.append((neighbour,level+1))
-                                pathdict[(level+1,neighbour)] = currcell
-                                visitdict[neighbour] = 1
+                    if(neighbour not in visitdict.keys()):
+                        if(grid[nr][nc]!=1000):
+                            queue.append((grid[nr][nc]+((level+1)*0.1),neighbour,level+1))
+                            pathdict[(level+1,neighbour)] = currcell
+                            visitdict[neighbour] = 1
                                 
-                        
-            # i+=1
+            queue.sort()
+            
+            i+=1
                         
         return traj #goal cannot be reached
                 
@@ -384,20 +301,13 @@ class IntelligentDriver(Junior):
         graph = self.worldGraph
         movingobstacles = True
         states = (self.graphview(graph, beliefOfOtherCars, parkedCars, chkPtsSoFar))
-       
 
-        # print(self.checkPoints)
-        # # finalmatrix = self.normalize(finalmatrix2)
-        # for line in finalmatrix:
-        #     print(line)
-        # print("-----------------------")
         currPos = self.getPos()
         col  = util.xToCol(currPos[0])
         row  = util.yToRow(currPos[1])
         currloc = (row, col)      
        
-        if currloc == self.checkPoints[0]:
-            self.checkPoints.pop(0)
+
             
         
         newmatrix = [[0 for x in range(len(states[0]))] for y in range(len(states))]
@@ -405,87 +315,30 @@ class IntelligentDriver(Junior):
             for j in range(len(states[0])):
                 newmatrix[i][j] = [states[i][j],0]
         # if self.mycheckpoints == []:
-        path = self.shortestpathTraj(states,currloc,self.checkPoints[0],False, False)
+        safetystates = self.safetymatrix(states)
+        path = self.shortestpathTraj(safetystates,currloc,self.checkPoints[0],True, False)
         print(f'SEARCHED FROM SRC: {currloc} TO DEST: {self.checkPoints[0]}, obtained path {path}')
-        #     if path != None:
-        #             self.mycheckpoints.append(path[len(path)//2])
-        # else:
-        #     path = self.shortestpathTraj(states,currloc,self.mycheckpoints[0],True)
-           
-        # print(path)
-        
-        # if len(self.mycheckpoints) > 0 and currloc == self.mycheckpoints[0]:
-        # self.mycheckpoints.pop()
-        
-        
-        # path = (self.dfs(states, currloc, self.checkPoints[0]))
-        # print(currloc)
-        # print(self.checkPoints[0])
-        # print(path)
+
         posx = currPos[0]
         posy = currPos[1]
-        safety = False
-        if path == [] and safety == True:
-            safematrix = self.rewardforstates(states)
-            backupmatrix = self.recursematrixfull(states, safematrix, 0.9)
-            finalmatrix = self.blockways(states, backupmatrix)
-            lis = [(row+1,col), (row+1,col+1), (row+1,col-1), (row-1,col), (row-1,col+1), (row-1,col-1), (row,col+1), (row,col-1)]
-        
-            maxindex = lis[0]
-            for elem in lis:
-                if self.existcheck(elem, finalmatrix) == True:
-                    maxindex = elem
-            for elem in lis:
-                if self.existcheck(elem, finalmatrix) == True:
-                    if finalmatrix[elem[0]][elem[1]] >= finalmatrix[maxindex[0]][maxindex[1]]:
-                        maxindex = elem  
-            # print(maxindex , "    THIS IS THE MAX INDEX")
+
+
             
-            posx = util.colToX(maxindex[1])
-            posy = util.rowToY(maxindex[0])
-            if currloc == maxindex:
-                return currPos, False           
-            return (posx, posy), True
-        elif path == [] and safety == False:
-           
-            path2 = self.shortestpathTraj(states,currloc,self.checkPoints[0],False, True)
-            if currloc == self.checkPoints[0]:
-                    self.checkPoints.pop(0)
-            endpoint = self.checkPoints[0]
-            pathbackup = path2
-            while len(path2) != 0:
-                # print(f"Searching for path2 at location : {currloc} and endpoint is {endpoint}")
-                path2 = self.shortestpathTraj(states,currloc,endpoint,False, True)
-                # print(f'path2 obtained: {path2}')
-                if(len(path2) != 0):
-                    endpoint = path2[len(path2)//2]
-                    # print(f'Searching for path at location : {currloc} and endpoint is {endpoint}')
-                    path = self.shortestpathTraj(states,currloc,endpoint,False, False)
-                    # print(f'path obtained: {path}')
-                    if path != []:
-                        break
-            print(f'PATH OBTAINDED AFTER RESEARCH: {path} for endpoint {endpoint} (original endpoint: {self.checkPoints[0]})')
-            if path == []:
-                print("NO PATH FOUND")
-                print('STOPPED')
-                return currPos, False
-            # else:
-                # path = pathbackup
-            else:
-                posx = util.colToX(path[1][1])
-                posy = util.rowToY(path[1][0]) 
-            
-        elif len(path) == 1:
-            posx = util.colToX(path[1][1])
-            posy = util.rowToY(path[1][0]) 
-        else:
+        if len(path) == 1:
+            posx = util.colToX(path[0][1])
+            posy = util.rowToY(path[0][0]) 
+        elif path != []:
             # print(path)
             print(f'Obtained path by simple BFS: {path} from src: {currloc} to dest: {self.checkPoints[0]}')
             posx = util.colToX(path[1][1])
-            posy = util.rowToY(path[1][0])     
+            posy = util.rowToY(path[1][0])  
+        else:
+            return currPos, False   
         
         # if currloc == self.checkPoints[0]:
         #     return (posx, posy), False   
+        if currloc == self.checkPoints[0]:
+            self.checkPoints.pop(0)
            
             
         return (posx, posy), True
