@@ -233,9 +233,143 @@ class IntelligentDriver(Junior):
                 if matrix[i][j] != -10000:
                     newmatrix[i][j] = matrix[i][j]/sum
         return newmatrix
+    
+    def bfs(self, matrix, u, end):
+        queue = []
+        dict = {}
+        dict[0] = u
+        curr = 0
+        allnodes = []
+        queue.append([u, curr])
+        allnodes.append(u)
+        while len(queue) != 0:
+            element = queue.pop(0)
+            level = element[1]+1
+            node = element[0]
+            if node == end:
+                print("found")
+                return dict
+            matrix[node[0]][node[1]][1] = 1
+            print(matrix[node[0]][node[1]])
+            lis = [(node[0]+1,node[1]), (node[0]+1,node[1]+1), (node[0]+1,node[1]-1), (node[0]-1,node[1]), (node[0]-1,node[1]+1), (node[0]-1,node[1]-1), (node[0],node[1]+1), (node[0],node[1]-1)]
+            for elem in lis:
+                if self.existcheck(elem, matrix) == True:
+                    if matrix[elem[0]][elem[1]][0] == 1 and matrix[elem[0]][elem[1]][1] == 0:
+                        queue.append([elem, level])
+                        if level in dict.keys():
+                            dict[level].append(elem)
+                        else:
+                            dict[level] = [elem]
+                   
+        return None
+    
+    
+    def indexbound(self, maxrow, maxcol, row, col):
+        if (row < 0 or row >= maxrow or col < 0 or col >= maxcol):
+            return False
+        else:
+            return True
+  
+    def printmat(self, matrix):
+        for i in range(len(matrix)):
+            for j in range(len(matrix[0])):
+                print(matrix[i][j],end=" ")
+            print()
+        return
+  
+    def neighblist(self, cell):
+        crow = cell[0]
+        ccol = cell[1]
+        neighbours = []
+        neighbours.append((crow-1,ccol))
+        neighbours.append((crow+1,ccol))
+        neighbours.append((crow,ccol-1))
+        neighbours.append((crow,ccol+1))
+        neighbours.append((crow-1,ccol-1))
+        neighbours.append((crow-1,ccol+1))
+        neighbours.append((crow+1,ccol-1))
+        neighbours.append((crow+1,ccol+1))
+        return neighbours
+
+    def shortestpathTraj(self, grid, start, goal, debug): #using bfs, #we can go to 1, 0 means blocked
+        (srow,scol)=start
+        (grow,gcol)=goal
+        printingmatrix = grid.copy() 
+        queue = []
+        queue.append(((srow,scol),0))
+        traj = []
+        pathdict = {}
+        pathgot = False
+        # 
+        i=0
+        visitdict = {}
+        # while(i<10):
+        while(len(queue)>0 or not(pathgot)):
+            print(queue[0])
+            currcell = queue[0][0]
+            level = queue[0][1]
+            queue.pop(0)
+            visitdict[currcell] = 1
+            neighbours = self.neighblist(currcell)
+            for neighbour in neighbours:
+                if(neighbour==goal):
+                    if(debug):
+                        print(f'GOAL REACHED: {neighbour}')
+                    pathgot = True
+                    destcell = neighbour
+                    traj.append(neighbour)
+                    printingmatrix[neighbour[0]][neighbour[1]] = 'X'
+                    destcell = currcell
+                    traj.append(currcell)
+                    printingmatrix[currcell[0]][currcell[1]] = 'X'
                     
+                    while(destcell!=start):
+                        destcell = pathdict[(level,destcell)]
+                        traj.append(destcell)
+                        printingmatrix[destcell[0]][destcell[1]] = 'X'
+                        level -=1
+                        
+                    traj.reverse()
+                    if(debug):
+                        self.printmat(printingmatrix)
+                        print(traj)
+                    return traj
+                nr = neighbour[0]
+                nc = neighbour[1]
+                if(self.indexbound(len(grid),len(grid[0]),nr,nc)):
+                    if(grid[nr][nc]==1):
+                        if(neighbour not in visitdict.keys()):
+                            queue.append((neighbour,level+1))
+                            pathdict[(level+1,neighbour)] = currcell
+                            visitdict[neighbour] = 1
+            i+=1
+                        
+        return None #goal cannot be reached
+                
+# matrix1 = [[1 for i in range(10)] for j in range(6)]
+
+        
+        
+            
+            
+        
         
     
+            
+    
+    def ispathsafe(self, matrix, path):
+        pass
+    
+    def iswesafe(self, matrix, coordinate):
+        pass
+    
+  
+    
+    
+    
+
+     
+      
     def getNextGoalPos(self, beliefOfOtherCars: list, parkedCars:list , chkPtsSoFar: int):
         '''
         Input:
@@ -254,14 +388,15 @@ class IntelligentDriver(Junior):
         '''
         graph = self.worldGraph
         states = (self.graphview(graph, beliefOfOtherCars, parkedCars, chkPtsSoFar))
+        
         safematrix = self.rewardforstates(states)
         backupmatrix = self.recursematrixfull(states, safematrix, 0.9)
         finalmatrix = self.blockways(states, backupmatrix)
-        print(self.checkPoints)
-        # finalmatrix = self.normalize(finalmatrix2)
-        for line in finalmatrix:
-            print(line)
-        print("-----------------------")
+        # print(self.checkPoints)
+        # # finalmatrix = self.normalize(finalmatrix2)
+        # for line in finalmatrix:
+        #     print(line)
+        # print("-----------------------")
         currPos = self.getPos()
         col  = util.xToCol(currPos[0])
         row  = util.yToRow(currPos[1])
@@ -278,7 +413,29 @@ class IntelligentDriver(Junior):
         posy = util.rowToY(maxindex[0])
         if currloc == self.checkPoints[0]:
             self.checkPoints.pop(0)
-
+        newmatrix = [[0 for x in range(len(states[0]))] for y in range(len(states))]
+        for i in range(len(states)):
+            for j in range(len(states[0])):
+                newmatrix[i][j] = [states[i][j],0]
+        path = self.shortestpathTraj(states,currloc,self.checkPoints[0],True)
+        print(path)
+        
+        
+        # path = (self.dfs(states, currloc, self.checkPoints[0]))
+        # print(currloc)
+        # print(self.checkPoints[0])
+        # print(path)
+        
+        if len(path) == 1:
+            posx = util.colToX(path[0][1])
+            posy = util.rowToY(path[0][0]) 
+        else:
+            posx = util.colToX(path[1][1])
+            posy = util.rowToY(path[1][0])     
+        
+        if currloc == self.checkPoints[0]:
+            return (posx, posy), False      
+            
         return (posx, posy), True
         
 
@@ -317,6 +474,8 @@ class IntelligentDriver(Junior):
         path.append(u)
         path.reverse()
         return path
+    
+    
     
     
     def getAutonomousActions(self, beliefOfOtherCars: list, parkedCars: list, chkPtsSoFar: int):
